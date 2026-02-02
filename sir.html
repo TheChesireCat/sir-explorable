@@ -141,12 +141,12 @@
       gap: 6px;
       font-size: 0.85rem;
       line-height: 1;
-      padding: 6px 10px;
-      width: 30px;
-      height: 30px;
-      border-radius: 999px;
-      border: 1px solid rgba(30, 28, 26, 0.2);
-      background: rgba(255, 255, 255, 0.9);
+      padding: 0;
+      width: 20px;
+      height: 20px;
+      border: none;
+      border-radius: 0;
+      background: transparent;
       color: var(--muted);
       cursor: pointer;
       position: absolute;
@@ -166,6 +166,7 @@
       border-radius: 14px;
       overflow: hidden;
       border: 1px solid rgba(30, 28, 26, 0.12);
+      touch-action: none;
     }
 
     .selector-label {
@@ -206,11 +207,62 @@
       color: var(--ink);
     }
 
+    .equation-wrap {
+      position: relative;
+    }
+
     .equations .math {
       padding: 8px 10px;
       border-radius: 10px;
       background: rgba(47, 127, 117, 0.08);
       min-height: 6.5em;
+    }
+
+    .equation-hint {
+      position: absolute;
+      top: 6px;
+      right: 8px;
+    }
+
+    .equation-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      background: rgba(30, 28, 26, 0.1);
+      color: var(--ink);
+      cursor: help;
+      user-select: none;
+    }
+
+    .equation-tooltip {
+      position: absolute;
+      top: 26px;
+      right: 0;
+      width: 220px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: rgba(30, 28, 26, 0.92);
+      color: #fff;
+      font-size: 0.75rem;
+      line-height: 1.4;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-4px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      box-shadow: 0 10px 24px rgba(30, 28, 26, 0.25);
+    }
+
+    .equation-hint:hover .equation-tooltip,
+    .equation-hint:focus-within .equation-tooltip,
+    .equation-hint.is-open .equation-tooltip {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
     }
 
     .plot-wrap {
@@ -487,11 +539,15 @@
         <h2>Choose &beta; and &mu;</h2>
         <div class="selector-wrap">
           <button id="selectorToggle" class="selector-toggle" type="button" aria-expanded="false" aria-label="Expand parameters">
-            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
-              <polyline fill="none" points="3 17.3 3 21 6.7 21" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
-              <line fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" x1="10" y1="14" x2="3.8" y2="20.2"/>
-              <line fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" x1="14" y1="10" x2="20.2" y2="3.8"/>
-              <polyline fill="none" points="21 6.7 21 3 17.3 3" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-expand-icon lucide-expand" aria-hidden="true" focusable="false">
+              <path d="m15 15 6 6"/>
+              <path d="m15 9 6-6"/>
+              <path d="M21 16v5h-5"/>
+              <path d="M21 8V3h-5"/>
+              <path d="M3 16v5h5"/>
+              <path d="m3 21 6-6"/>
+              <path d="M3 8V3h5"/>
+              <path d="M9 9 3 3"/>
             </svg>
           </button>
           <svg id="paramBox" viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%;height:100%;display:block;">
@@ -524,7 +580,13 @@
         </div>
         <div class="equations">
           <h3 id="equationTitle">Deterministic SIR</h3>
-          <div id="equationBody" class="math"></div>
+          <div class="equation-wrap">
+            <div id="equationBody" class="math"></div>
+            <div id="equationHint" class="equation-hint">
+              <button id="equationHelpBtn" class="equation-icon" type="button" aria-label="Equation help" aria-expanded="false" aria-controls="equationTooltip">i</button>
+              <div id="equationTooltip" class="equation-tooltip" role="tooltip"></div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -632,6 +694,9 @@
     const percentileLegend = document.getElementById('percentileLegend');
     const equationTitle = document.getElementById('equationTitle');
     const equationBody = document.getElementById('equationBody');
+    const equationTooltip = document.getElementById('equationTooltip');
+    const equationHint = document.getElementById('equationHint');
+    const equationHelpBtn = document.getElementById('equationHelpBtn');
 
     const inputN = document.getElementById('inputN');
     const inputNValue = document.getElementById('inputNValue');
@@ -666,7 +731,8 @@
           '$$S_{t+1} = S_t - \\beta \\frac{I_t}{N} S_t$$' +
           '$$I_{t+1} = I_t + \\beta \\frac{I_t}{N} S_t - \\mu I_t$$' +
           '$$R_{t+1} = R_t + \\mu I_t$$'
-        )
+        ),
+        help: 'Shows the expected change per step. Infection scales with contacts (beta I/N) and recovery removes a fraction mu of I.'
       },
       stoch: {
         title: 'Stochastic SIR',
@@ -675,7 +741,8 @@
           '$$I_{t+1} = I_t + \\mathrm{Bin}(S_t, \\lambda_t) - \\mathrm{Bin}(I_t, \\mu)$$' +
           '$$R_{t+1} = R_t + \\mathrm{Bin}(I_t, \\mu)$$' +
           '$$\\lambda_t = 1 - (1 - \\beta / N)^{I_t}$$'
-        )
+        ),
+        help: 'Infections and recoveries are random binomial draws each step. Lambda is the per-susceptible infection probability from I contacts.'
       }
     };
 
@@ -955,6 +1022,9 @@
       const eq = equations[state.mode];
       equationTitle.textContent = eq.title;
       equationBody.innerHTML = eq.body;
+      if (equationTooltip) {
+        equationTooltip.textContent = eq.help;
+      }
       if (window.MathJax && window.MathJax.typesetPromise) {
         window.MathJax.typesetPromise([equationBody]);
       }
@@ -1044,6 +1114,7 @@
     }
 
     paramBox.addEventListener('pointerdown', (event) => {
+      event.preventDefault();
       dragging = true;
       paramBox.setPointerCapture(event.pointerId);
       updateParamFromEvent(event);
@@ -1051,12 +1122,17 @@
 
     paramBox.addEventListener('pointermove', (event) => {
       if (!dragging) return;
+      event.preventDefault();
       updateParamFromEvent(event);
     });
 
     paramBox.addEventListener('pointerup', () => {
       dragging = false;
       scheduleRender();
+    });
+
+    paramBox.addEventListener('pointercancel', () => {
+      dragging = false;
     });
 
     [inputN, inputSteps, inputRuns, inputI0, inputR0].forEach((input) => {
@@ -1124,6 +1200,26 @@
         if (helpPopover.contains(event.target) || helpButton.contains(event.target)) return;
         helpPopover.classList.remove('is-open');
         helpPopover.setAttribute('aria-hidden', 'true');
+      });
+    }
+
+    function setEquationTooltipOpen(isOpen) {
+      if (!equationHint || !equationHelpBtn) return;
+      equationHint.classList.toggle('is-open', isOpen);
+      equationHelpBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    }
+
+    if (equationHelpBtn && equationHint) {
+      equationHelpBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const isOpen = equationHint.classList.contains('is-open');
+        setEquationTooltipOpen(!isOpen);
+      });
+
+      document.addEventListener('click', (event) => {
+        if (!equationHint.classList.contains('is-open')) return;
+        if (equationHint.contains(event.target)) return;
+        setEquationTooltipOpen(false);
       });
     }
 
