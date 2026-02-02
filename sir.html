@@ -89,6 +89,10 @@
       width: 100%;
       padding: 0;
     }
+    .controls input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+    }
 
     .slider-readout {
       font-size: 0.8rem;
@@ -244,11 +248,47 @@
 
     .swatch.s { background: var(--accent-2); }
     .swatch.i { background: var(--accent-3); }
+    .swatch.dash {
+      background: transparent;
+      height: 0;
+      border-top: 2px dashed var(--accent-3);
+    }
+    .swatch.dot {
+      background: transparent;
+      height: 0;
+      border-top: 2px dotted var(--accent-3);
+    }
     .swatch.band {
       height: 10px;
       border-radius: 4px;
       background: rgba(179, 58, 58, 0.18);
       border: 1px solid rgba(179, 58, 58, 0.35);
+    }
+
+    #pathIMedian,
+    #pathIP75,
+    #pathIP25 {
+      fill: none;
+      stroke: var(--accent-3);
+      stroke-width: 2;
+      opacity: 0.65;
+    }
+
+    #pathIMedian {
+      stroke-dasharray: 7 4;
+      opacity: 0.85;
+    }
+
+    #pathIP75,
+    #pathIP25 {
+      stroke-dasharray: 3 4;
+    }
+
+    .run-line {
+      fill: none;
+      stroke: var(--accent-3);
+      stroke-width: 1;
+      opacity: 0.12;
     }
 
     .mode-toggle {
@@ -418,16 +458,22 @@
         </label>
         <label>
           Time steps
-          <input id="inputSteps" type="number" min="10" max="600" step="10" value="100" />
+          <input id="inputSteps" type="number" min="10" max="1000" step="10" value="500" />
         </label>
         <label id="runsControl">
           Runs (mean/std)
-          <input id="inputRuns" type="range" min="5" max="200" step="5" value="40" />
-          <div class="slider-readout">Runs = <span id="inputRunsValue">40</span></div>
+          <input id="inputRuns" type="range" min="5" max="200" step="5" value="150" />
+          <div class="slider-readout">Runs = <span id="inputRunsValue">150</span></div>
+        </label>
+        <label id="allRunsControl">
+          Show all runs (I)
+          <input id="inputAllRuns" type="checkbox" />
+          <div class="slider-readout">Faint trajectories for each stochastic run</div>
         </label>
         <label>
           Initial infected I0
-          <input id="inputI0" type="number" min="1" max="50" step="1" value="1" />
+          <input id="inputI0" type="range" min="1" max="50" step="1" value="1" />
+          <div class="slider-readout">I0 = <span id="inputI0Value">1</span></div>
         </label>
         <label>
           Initial recovered R0
@@ -498,7 +544,7 @@
                 <ul>
                   <li>Drag the dot in the square to set &beta; (infection) and &mu; (recovery).</li>
                   <li>Use N and steps to change population size and timeline length.</li>
-                  <li>Deterministic shows smooth averages; stochastic shows mean + 1&sigma; band.</li>
+                  <li>Deterministic shows smooth averages; stochastic shows mean, median, and 25th/75th percentiles (plus 1&sigma; band).</li>
                 </ul>
                 <h4>Variables</h4>
                 <ul>
@@ -521,8 +567,12 @@
             <g id="yTicks" fill="#5a5752" font-size="12" font-family="Trebuchet MS"></g>
             <g id="xTicks" fill="#5a5752" font-size="12" font-family="Trebuchet MS"></g>
             <path id="bandI" fill="rgba(179, 58, 58, 0.18)" stroke="none" />
+            <g id="allRunsGroup" pointer-events="none"></g>
             <path id="pathS" fill="none" stroke="#2f7f75" stroke-width="2.5" />
             <path id="pathI" fill="none" stroke="#b33a3a" stroke-width="2.5" />
+            <path id="pathIMedian" />
+            <path id="pathIP75" />
+            <path id="pathIP25" />
             <path id="pathR" fill="none" stroke="#d66a33" stroke-width="2.5" />
             <g id="labels" fill="#5a5752" font-size="12" font-family="Trebuchet MS">
               <text id="labelN" x="70" y="24">N = 200</text>
@@ -534,6 +584,8 @@
           <span><span class="swatch s"></span>Susceptible</span>
           <span><span class="swatch i"></span>Infected (mean)</span>
           <span><span class="swatch"></span>Recovered</span>
+          <span id="medianLegend"><span class="swatch dash"></span>I median</span>
+          <span id="percentileLegend"><span class="swatch dot"></span>I 25th / 75th percentile</span>
           <span id="bandLegend"><span class="swatch band"></span>I &plusmn; 1&sigma;</span>
         </div>
       </section>
@@ -550,10 +602,11 @@
       beta: 0.3,
       mu: 0.1,
       N: 200,
-      steps: 100,
+      steps: 500,
       I0: 1,
       R0: 0,
-      runs: 40
+      runs: 150,
+      showAllRuns: false
     };
 
     const paramBox = document.getElementById('paramBox');
@@ -562,8 +615,12 @@
     const muReadout = document.getElementById('muReadout');
     const plot = document.getElementById('plot');
     const bandI = document.getElementById('bandI');
+    const allRunsGroup = document.getElementById('allRunsGroup');
     const pathS = document.getElementById('pathS');
     const pathI = document.getElementById('pathI');
+    const pathIMedian = document.getElementById('pathIMedian');
+    const pathIP75 = document.getElementById('pathIP75');
+    const pathIP25 = document.getElementById('pathIP25');
     const pathR = document.getElementById('pathR');
     const grid = document.getElementById('grid');
     const yTicks = document.getElementById('yTicks');
@@ -571,6 +628,8 @@
     const labelN = document.getElementById('labelN');
     const labelSteps = document.getElementById('labelSteps');
     const bandLegend = document.getElementById('bandLegend');
+    const medianLegend = document.getElementById('medianLegend');
+    const percentileLegend = document.getElementById('percentileLegend');
     const equationTitle = document.getElementById('equationTitle');
     const equationBody = document.getElementById('equationBody');
 
@@ -579,9 +638,12 @@
     const inputSteps = document.getElementById('inputSteps');
     const inputRuns = document.getElementById('inputRuns');
     const inputRunsValue = document.getElementById('inputRunsValue');
+    const inputAllRuns = document.getElementById('inputAllRuns');
     const inputI0 = document.getElementById('inputI0');
+    const inputI0Value = document.getElementById('inputI0Value');
     const inputR0 = document.getElementById('inputR0');
     const runsControl = document.getElementById('runsControl');
+    const allRunsControl = document.getElementById('allRunsControl');
 
     const selectorPanel = document.querySelector('.panel.selector');
     const selectorToggle = document.getElementById('selectorToggle');
@@ -708,6 +770,7 @@
       const meanI = new Float64Array(steps);
       const meanR = new Float64Array(steps);
       const m2I = new Float64Array(steps);
+      const iSamples = Array.from({ length: steps }, () => new Int32Array(runCount));
 
       const S = new Int32Array(steps);
       const I = new Int32Array(steps);
@@ -739,6 +802,7 @@
 
         const k = r + 1;
         for (let t = 0; t < steps; t++) {
+          iSamples[t][r] = I[t];
           meanS[t] += (S[t] - meanS[t]) / k;
           meanR[t] += (R[t] - meanR[t]) / k;
 
@@ -755,7 +819,18 @@
         }
       }
 
-      return { meanS, meanI, meanR, stdI };
+      const medianI = new Float64Array(steps);
+      const p75I = new Float64Array(steps);
+      const p25I = new Float64Array(steps);
+      for (let t = 0; t < steps; t++) {
+        const values = Array.from(iSamples[t]);
+        values.sort((a, b) => a - b);
+        medianI[t] = quantile(values, 0.5);
+        p75I[t] = quantile(values, 0.75);
+        p25I[t] = quantile(values, 0.25);
+      }
+
+      return { meanS, meanI, meanR, stdI, medianI, p75I, p25I, iSamples };
     }
 
     function buildPath(series, width, height, maxY, pad) {
@@ -788,6 +863,33 @@
         d += `L${x.toFixed(2)},${y.toFixed(2)}`;
       }
       return d + 'Z';
+    }
+
+    function buildRunLines(samples, width, height, maxY, pad) {
+      const steps = samples.length;
+      if (!steps) return '';
+      const runs = samples[0].length;
+      const xStep = steps > 1 ? width / (steps - 1) : 0;
+      let markup = '';
+      for (let r = 0; r < runs; r++) {
+        let d = '';
+        for (let t = 0; t < steps; t++) {
+          const x = pad.left + t * xStep;
+          const y = pad.top + (1 - samples[t][r] / maxY) * height;
+          d += t === 0 ? `M${x.toFixed(2)},${y.toFixed(2)}` : `L${x.toFixed(2)},${y.toFixed(2)}`;
+        }
+        markup += `<path class="run-line" d="${d}" />`;
+      }
+      return markup;
+    }
+
+    function quantile(sortedValues, q) {
+      if (!sortedValues.length) return 0;
+      const pos = (sortedValues.length - 1) * q;
+      const base = Math.floor(pos);
+      const rest = pos - base;
+      const next = sortedValues[base + 1];
+      return next === undefined ? sortedValues[base] : sortedValues[base] + rest * (next - sortedValues[base]);
     }
 
     function drawGrid(width, height, pad) {
@@ -832,13 +934,23 @@
     function updateModeUI() {
       modeDet.classList.toggle('active', state.mode === 'det');
       modeStoch.classList.toggle('active', state.mode === 'stoch');
+      const isStoch = state.mode === 'stoch';
       if (runsControl) {
-        const isStoch = state.mode === 'stoch';
         runsControl.classList.toggle('control-disabled', !isStoch);
         inputRuns.disabled = !isStoch;
       }
-      bandLegend.classList.toggle('legend-item-hidden', state.mode !== 'stoch');
-      bandI.style.display = state.mode === 'stoch' ? 'block' : 'none';
+      if (allRunsControl) {
+        allRunsControl.classList.toggle('control-disabled', !isStoch);
+        inputAllRuns.disabled = !isStoch;
+      }
+      bandLegend.classList.toggle('legend-item-hidden', !isStoch);
+      medianLegend.classList.toggle('legend-item-hidden', !isStoch);
+      percentileLegend.classList.toggle('legend-item-hidden', !isStoch);
+      bandI.style.display = isStoch ? 'block' : 'none';
+      allRunsGroup.style.display = isStoch ? 'block' : 'none';
+      pathIMedian.style.display = isStoch ? 'block' : 'none';
+      pathIP75.style.display = isStoch ? 'block' : 'none';
+      pathIP25.style.display = isStoch ? 'block' : 'none';
 
       const eq = equations[state.mode];
       equationTitle.textContent = eq.title;
@@ -859,15 +971,23 @@
         const { S, I, R } = simulateDeterministic();
         pathS.setAttribute('d', buildPath(S, width, height, maxY, pad));
         pathI.setAttribute('d', buildPath(I, width, height, maxY, pad));
+        pathIMedian.setAttribute('d', '');
+        pathIP75.setAttribute('d', '');
+        pathIP25.setAttribute('d', '');
         pathR.setAttribute('d', buildPath(R, width, height, maxY, pad));
         bandI.setAttribute('d', '');
+        allRunsGroup.innerHTML = '';
       } else {
         const runCount = dragging ? Math.max(5, Math.round(state.runs / 5)) : state.runs;
-        const { meanS, meanI, meanR, stdI } = simulateStochastic(runCount);
+        const { meanS, meanI, meanR, stdI, medianI, p75I, p25I, iSamples } = simulateStochastic(runCount);
         bandI.setAttribute('d', buildBand(meanI, stdI, width, height, maxY, pad));
         pathS.setAttribute('d', buildPath(meanS, width, height, maxY, pad));
         pathI.setAttribute('d', buildPath(meanI, width, height, maxY, pad));
+        pathIMedian.setAttribute('d', buildPath(medianI, width, height, maxY, pad));
+        pathIP75.setAttribute('d', buildPath(p75I, width, height, maxY, pad));
+        pathIP25.setAttribute('d', buildPath(p25I, width, height, maxY, pad));
         pathR.setAttribute('d', buildPath(meanR, width, height, maxY, pad));
+        allRunsGroup.innerHTML = state.showAllRuns ? buildRunLines(iSamples, width, height, maxY, pad) : '';
         labelSteps.textContent = `steps = ${state.steps}, runs = ${runCount}${dragging ? ' (preview)' : ''}`;
       }
 
@@ -948,9 +1068,19 @@
         state.R0 = Math.max(0, parseInt(inputR0.value, 10) || state.R0);
         inputNValue.textContent = state.N;
         inputRunsValue.textContent = state.runs;
+        if (inputI0Value) {
+          inputI0Value.textContent = state.I0;
+        }
         scheduleRender();
       });
     });
+
+    if (inputAllRuns) {
+      inputAllRuns.addEventListener('change', () => {
+        state.showAllRuns = inputAllRuns.checked;
+        scheduleRender();
+      });
+    }
 
     modeDet.addEventListener('click', () => {
       state.mode = 'det';
@@ -1000,6 +1130,10 @@
     setDot();
     inputNValue.textContent = state.N;
     inputRunsValue.textContent = state.runs;
+    if (inputI0Value) {
+      inputI0Value.textContent = state.I0;
+    }
+    state.showAllRuns = inputAllRuns ? inputAllRuns.checked : false;
     updateModeUI();
     syncSelectorForViewport();
     render();
