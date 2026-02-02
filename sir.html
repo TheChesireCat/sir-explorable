@@ -57,13 +57,32 @@
       max-width: 560px;
     }
 
-    header p + .controls-toggle {
+    header p + .controls-actions {
       margin-top: 10px;
+    }
+
+    .controls-actions {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
     }
 
     .intro-values {
       font-weight: 600;
       color: var(--ink);
+    }
+
+    .shared-badge {
+      display: none;
+      margin-left: 6px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(47, 127, 117, 0.14);
+      color: var(--ink);
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.2px;
     }
 
     .controls {
@@ -93,6 +112,24 @@
       font-size: 0.85rem;
       font-weight: 600;
       cursor: pointer;
+    }
+
+    .share-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(30, 28, 26, 0.2);
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .share-button.copied {
+      color: var(--accent);
     }
 
     .controls-toggle svg {
@@ -630,16 +667,19 @@
       <div>
         <h1>Disease Dynamics Explorable</h1>
         <p>Based on the classic Kermack&ndash;McKendrick SIR model. Read the original paper: <a href="https://jxshix.people.wm.edu/2009-harbin-course/classic/Kermack-McKendrick-1927-I.pdf" target="_blank" rel="noreferrer">Kermack &amp; McKendrick (1927)</a>.</p>
-        <p>Click or drag in the box to set <strong>&beta;</strong> and <strong>&mu;</strong>. Toggle between deterministic and stochastic simulations. <span id="initialValues" class="intro-values"></span></p>
-        <button id="controlsToggle" class="controls-toggle" type="button" aria-expanded="false" aria-controls="controlsPanel">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M12 20a8 8 0 1 0-8-8 8 8 0 0 0 8 8Z" fill="none" stroke="currentColor" stroke-width="2"/>
-            <path d="M12 8a4 4 0 1 0 4 4 4 4 0 0 0-4-4Z" fill="none" stroke="currentColor" stroke-width="2"/>
-            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-          Controls
-          <span class="controls-indicator" aria-hidden="true"></span>
-        </button>
+        <p>Click or drag in the box to set <strong>&beta;</strong> and <strong>&mu;</strong>. Toggle between deterministic and stochastic simulations. <span id="initialValues" class="intro-values"></span> <span id="sharedBadge" class="shared-badge" aria-hidden="true">Loaded from shared link</span></p>
+        <div class="controls-actions">
+          <button id="controlsToggle" class="controls-toggle" type="button" aria-expanded="false" aria-controls="controlsPanel">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M12 20a8 8 0 1 0-8-8 8 8 0 0 0 8 8Z" fill="none" stroke="currentColor" stroke-width="2"/>
+              <path d="M12 8a4 4 0 1 0 4 4 4 4 0 0 0-4-4Z" fill="none" stroke="currentColor" stroke-width="2"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            Controls
+            <span class="controls-indicator" aria-hidden="true"></span>
+          </button>
+          <button id="shareButton" class="share-button" type="button" aria-label="Copy shareable link">Copy link</button>
+        </div>
         <div id="controlsSummary" class="controls-summary" aria-hidden="true"></div>
       </div>
       <div id="controlsPanel" class="controls-panel">
@@ -881,6 +921,8 @@
     const controlsPanel = document.getElementById('controlsPanel');
     const controlsSummary = document.getElementById('controlsSummary');
     const initialValues = document.getElementById('initialValues');
+    const sharedBadge = document.getElementById('sharedBadge');
+    const shareButton = document.getElementById('shareButton');
 
     const selectorPanel = document.querySelector('.panel.selector');
     const selectorToggle = document.getElementById('selectorToggle');
@@ -896,6 +938,7 @@
     let dragging = false;
     let isMobileInitialized = false;
     let isControlsInitialized = false;
+    let persistTimer = null;
 
     const equations = {
       det: {
@@ -923,6 +966,115 @@
       return Math.min(Math.max(value, min), max);
     }
 
+    function clampInt(value, min, max) {
+      const num = parseInt(value, 10);
+      if (Number.isNaN(num)) return min;
+      return clamp(num, min, max);
+    }
+
+    function serializeState() {
+      return {
+        mode: state.mode,
+        beta: Number(state.beta.toFixed(4)),
+        mu: Number(state.mu.toFixed(4)),
+        N: state.N,
+        steps: state.steps,
+        I0: state.I0,
+        R0: state.R0,
+        runs: state.runs,
+        showAllRuns: state.showAllRuns
+      };
+    }
+
+    function persistState() {
+      try {
+        localStorage.setItem('sirExplorableState', JSON.stringify(serializeState()));
+      } catch (err) {
+        // ignore storage failures
+      }
+    }
+
+    function persistStateDebounced() {
+      if (persistTimer) {
+        clearTimeout(persistTimer);
+      }
+      persistTimer = setTimeout(() => {
+        persistTimer = null;
+        persistState();
+      }, 150);
+    }
+
+    function applyStateToInputs() {
+      inputN.value = state.N;
+      inputSteps.value = state.steps;
+      inputRuns.value = state.runs;
+      inputI0.value = state.I0;
+      inputR0.value = state.R0;
+      if (inputAllRuns) inputAllRuns.checked = state.showAllRuns;
+      inputNValue.textContent = state.N;
+      inputRunsValue.textContent = state.runs;
+      if (inputI0Value) inputI0Value.textContent = state.I0;
+    }
+
+    function loadStateFromHash() {
+      const hash = window.location.hash.replace(/^#/, '');
+      if (!hash) return false;
+      let raw = hash;
+      if (raw.startsWith('state=')) {
+        raw = raw.slice('state='.length);
+      }
+      const params = new URLSearchParams(raw);
+      if (!params.has('beta') && !params.has('mu') && !params.has('N')) return false;
+      if (params.has('mode')) {
+        const mode = params.get('mode');
+        if (mode === 'det' || mode === 'stoch') state.mode = mode;
+      }
+      if (params.has('beta')) state.beta = clamp(parseFloat(params.get('beta')), 0, 1);
+      if (params.has('mu')) state.mu = clamp(parseFloat(params.get('mu')), 0, 1);
+      if (params.has('N')) state.N = clampInt(params.get('N'), 10, 10000);
+      if (params.has('steps')) state.steps = clampInt(params.get('steps'), 10, 1000);
+      if (params.has('I0')) state.I0 = clampInt(params.get('I0'), 1, 50);
+      if (params.has('R0')) state.R0 = clampInt(params.get('R0'), 0, 50);
+      if (params.has('runs')) state.runs = clampInt(params.get('runs'), 5, 1000);
+      if (params.has('all')) state.showAllRuns = params.get('all') === '1';
+      return true;
+    }
+
+    function loadStateFromStorage() {
+      try {
+        const raw = localStorage.getItem('sirExplorableState');
+        if (!raw) return false;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') return false;
+        if (parsed.mode === 'det' || parsed.mode === 'stoch') state.mode = parsed.mode;
+        if (typeof parsed.beta === 'number') state.beta = clamp(parsed.beta, 0, 1);
+        if (typeof parsed.mu === 'number') state.mu = clamp(parsed.mu, 0, 1);
+        if (typeof parsed.N === 'number') state.N = clamp(parsed.N, 10, 10000);
+        if (typeof parsed.steps === 'number') state.steps = clamp(parsed.steps, 10, 1000);
+        if (typeof parsed.I0 === 'number') state.I0 = clamp(parsed.I0, 1, 50);
+        if (typeof parsed.R0 === 'number') state.R0 = clamp(parsed.R0, 0, 50);
+        if (typeof parsed.runs === 'number') state.runs = clamp(parsed.runs, 5, 1000);
+        if (typeof parsed.showAllRuns === 'boolean') state.showAllRuns = parsed.showAllRuns;
+        return true;
+      } catch (err) {
+        return false;
+      }
+    }
+
+    function buildShareUrl() {
+      const params = new URLSearchParams();
+      params.set('mode', state.mode);
+      params.set('beta', state.beta.toFixed(4));
+      params.set('mu', state.mu.toFixed(4));
+      params.set('N', state.N);
+      params.set('steps', state.steps);
+      params.set('I0', state.I0);
+      params.set('R0', state.R0);
+      params.set('runs', state.runs);
+      params.set('all', state.showAllRuns ? '1' : '0');
+      const base = window.location.origin + window.location.pathname;
+      return `${base}#state=${params.toString()}`;
+    }
     function mulberry32(seed) {
       let t = seed >>> 0;
       return function rng() {
@@ -1348,6 +1500,7 @@
       state.mu = 1 - y / rect.height;
       setDot();
       setInitialValuesText();
+      persistStateDebounced();
       scheduleRender();
     }
 
@@ -1469,6 +1622,7 @@
         }
         setInitialValuesText();
         updateControlsSummary();
+        persistStateDebounced();
         scheduleRender();
       });
     });
@@ -1476,6 +1630,7 @@
     if (inputAllRuns) {
       inputAllRuns.addEventListener('change', () => {
         state.showAllRuns = inputAllRuns.checked;
+        persistStateDebounced();
         scheduleRender();
       });
     }
@@ -1483,12 +1638,14 @@
     modeDet.addEventListener('click', () => {
       state.mode = 'det';
       updateModeUI();
+      persistStateDebounced();
       scheduleRender();
     });
 
     modeStoch.addEventListener('click', () => {
       state.mode = 'stoch';
       updateModeUI();
+      persistStateDebounced();
       scheduleRender();
     });
 
@@ -1510,6 +1667,39 @@
       controlsToggle.addEventListener('click', () => {
         const isOpen = controlsPanel && controlsPanel.classList.contains('is-open');
         setControlsState(!isOpen);
+      });
+    }
+
+    if (shareButton) {
+      shareButton.addEventListener('click', async () => {
+        const url = buildShareUrl();
+        let copied = false;
+        try {
+          await navigator.clipboard.writeText(url);
+          copied = true;
+        } catch (err) {
+          const temp = document.createElement('textarea');
+          temp.value = url;
+          temp.setAttribute('readonly', '');
+          temp.style.position = 'absolute';
+          temp.style.left = '-9999px';
+          document.body.appendChild(temp);
+          temp.select();
+          try {
+            copied = document.execCommand('copy');
+          } catch (copyErr) {
+            copied = false;
+          }
+          document.body.removeChild(temp);
+        }
+        if (copied) {
+          shareButton.innerHTML = 'Copied!';
+          shareButton.classList.add('copied');
+          setTimeout(() => {
+            shareButton.textContent = 'Copy link';
+            shareButton.classList.remove('copied');
+          }, 1600);
+        }
       });
     }
 
@@ -1554,6 +1744,16 @@
     }
 
     setDot();
+    const loadedFromHash = loadStateFromHash();
+    if (!loadedFromHash) {
+      loadStateFromStorage();
+    }
+    if (sharedBadge) {
+      sharedBadge.style.display = loadedFromHash ? 'inline-flex' : 'none';
+      sharedBadge.setAttribute('aria-hidden', loadedFromHash ? 'false' : 'true');
+    }
+    applyStateToInputs();
+    setDot();
     inputNValue.textContent = state.N;
     inputRunsValue.textContent = state.runs;
     if (inputI0Value) {
@@ -1566,6 +1766,7 @@
     syncSelectorForViewport();
     syncControlsForViewport();
     render();
+    persistState();
   </script>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 </body>
