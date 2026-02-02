@@ -506,6 +506,19 @@
       overflow: hidden;
     }
 
+    .rerun-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(30, 28, 26, 0.2);
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--muted);
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
     .mode-toggle button {
       background: #ffffff;
       border: none;
@@ -780,6 +793,7 @@
               <button id="modeDet" type="button" class="active" data-mode="det">Deterministic</button>
               <button id="modeStoch" type="button" data-mode="stoch">Stochastic</button>
             </div>
+            <button id="rerunButton" class="rerun-button" type="button" aria-label="Re-run stochastic simulation">Re-run</button>
             <span class="pill">SI / SIS coming soon</span>
             <div class="help">
               <button id="helpButton" class="help-button" type="button" aria-label="How to use">?</button>
@@ -863,7 +877,8 @@
       I0: 1,
       R0: 0,
       runs: 150,
-      showAllRuns: false
+      showAllRuns: false,
+      rerunNonce: 0
     };
 
     const paramBox = document.getElementById('paramBox');
@@ -933,6 +948,7 @@
     const modeStoch = document.getElementById('modeStoch');
     const helpButton = document.getElementById('helpButton');
     const helpPopover = document.getElementById('helpPopover');
+    const rerunButton = document.getElementById('rerunButton');
 
     let scheduled = false;
     let dragging = false;
@@ -1175,7 +1191,8 @@
         (state.N << 4) ^
         (state.steps << 2) ^
         (state.I0 * 101) ^
-        (state.R0 * 37)
+        (state.R0 * 37) ^
+        (state.rerunNonce * 1999)
       ) >>> 0;
 
       for (let r = 0; r < runCount; r++) {
@@ -1385,6 +1402,9 @@
       bandI.style.display = isStoch ? 'block' : 'none';
       bandR.style.display = isStoch ? 'block' : 'none';
       plot.classList.toggle('mode-stoch', isStoch);
+      if (rerunButton) {
+        rerunButton.style.display = isStoch ? 'inline-flex' : 'none';
+      }
       allRunsGroupS.style.display = isStoch ? 'block' : 'none';
       allRunsGroupI.style.display = isStoch ? 'block' : 'none';
       allRunsGroupR.style.display = isStoch ? 'block' : 'none';
@@ -1700,6 +1720,13 @@
             shareButton.classList.remove('copied');
           }, 1600);
         }
+      });
+    }
+
+    if (rerunButton) {
+      rerunButton.addEventListener('click', () => {
+        state.rerunNonce += 1;
+        scheduleRender();
       });
     }
 
