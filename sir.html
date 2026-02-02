@@ -57,6 +57,15 @@
       max-width: 560px;
     }
 
+    header p + .controls-toggle {
+      margin-top: 10px;
+    }
+
+    .intro-values {
+      font-weight: 600;
+      color: var(--ink);
+    }
+
     .controls {
       display: grid;
       grid-template-columns: repeat(2, minmax(140px, 1fr));
@@ -66,6 +75,53 @@
       padding: 14px 16px;
       box-shadow: var(--shadow);
       min-width: 280px;
+    }
+
+    .controls-panel {
+      display: block;
+    }
+
+    .controls-toggle {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(30, 28, 26, 0.2);
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .controls-toggle svg {
+      width: 14px;
+      height: 14px;
+      stroke: currentColor;
+      flex: 0 0 auto;
+    }
+
+    .controls-indicator {
+      display: none;
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 0 0 rgba(214, 106, 51, 0.55);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .controls-toggle[aria-expanded="true"] .controls-indicator {
+      display: none;
+    }
+
+    .controls-summary {
+      display: none;
+      margin-top: 8px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      letter-spacing: 0.2px;
     }
 
     .controls label {
@@ -445,6 +501,12 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(214, 106, 51, 0.55); }
+      70% { box-shadow: 0 0 0 6px rgba(214, 106, 51, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(214, 106, 51, 0); }
+    }
+
     @media (max-width: 960px) {
       .selector-backdrop {
         display: block;
@@ -465,7 +527,12 @@
         flex-direction: column;
         align-items: flex-start;
       }
+      .controls-panel { width: 100%; display: none; }
+      .controls-panel.is-open { display: block; }
       .controls { width: 100%; }
+      .controls-toggle { display: inline-flex; }
+      .controls-indicator { display: inline-block; }
+      .controls-summary.is-visible { display: block; }
       .layout { grid-template-columns: 1fr; }
       .plot-wrap { height: auto; aspect-ratio: 800 / 420; }
       .panel.plot { order: -1; }
@@ -500,37 +567,49 @@
       <div>
         <h1>Disease Dynamics Explorable</h1>
         <p>Based on the classic Kermack&ndash;McKendrick SIR model. Read the original paper: <a href="https://jxshix.people.wm.edu/2009-harbin-course/classic/Kermack-McKendrick-1927-I.pdf" target="_blank" rel="noreferrer">Kermack &amp; McKendrick (1927)</a>.</p>
-        <p>Click or drag in the box to set <strong>&beta;</strong> and <strong>&mu;</strong>. Toggle between deterministic and stochastic simulations.</p>
+        <p>Click or drag in the box to set <strong>&beta;</strong> and <strong>&mu;</strong>. Toggle between deterministic and stochastic simulations. <span id="initialValues" class="intro-values"></span></p>
+        <button id="controlsToggle" class="controls-toggle" type="button" aria-expanded="false" aria-controls="controlsPanel">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M12 20a8 8 0 1 0-8-8 8 8 0 0 0 8 8Z" fill="none" stroke="currentColor" stroke-width="2"/>
+            <path d="M12 8a4 4 0 1 0 4 4 4 4 0 0 0-4-4Z" fill="none" stroke="currentColor" stroke-width="2"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          Controls
+          <span class="controls-indicator" aria-hidden="true"></span>
+        </button>
+        <div id="controlsSummary" class="controls-summary" aria-hidden="true"></div>
       </div>
-      <div class="controls">
-        <label>
-          Population N
-          <input id="inputN" type="range" min="10" max="10000" step="10" value="200" />
-          <div class="slider-readout">N = <span id="inputNValue">200</span></div>
-        </label>
-        <label>
-          Time steps
-          <input id="inputSteps" type="number" min="10" max="1000" step="10" value="500" />
-        </label>
-        <label id="runsControl">
-          Runs (mean/std)
-          <input id="inputRuns" type="range" min="5" max="200" step="5" value="150" />
-          <div class="slider-readout">Runs = <span id="inputRunsValue">150</span></div>
-        </label>
-        <label id="allRunsControl">
-          Show all runs (I)
-          <input id="inputAllRuns" type="checkbox" />
-          <div class="slider-readout">Faint trajectories for each stochastic run</div>
-        </label>
-        <label>
-          Initial infected I0
-          <input id="inputI0" type="range" min="1" max="50" step="1" value="1" />
-          <div class="slider-readout">I0 = <span id="inputI0Value">1</span></div>
-        </label>
-        <label>
-          Initial recovered R0
-          <input id="inputR0" type="number" min="0" max="50" step="1" value="0" />
-        </label>
+      <div id="controlsPanel" class="controls-panel">
+        <div class="controls">
+          <label>
+            Population N
+            <input id="inputN" type="range" min="10" max="10000" step="10" value="200" />
+            <div class="slider-readout">N = <span id="inputNValue">200</span></div>
+          </label>
+          <label>
+            Time steps
+            <input id="inputSteps" type="number" min="10" max="1000" step="10" value="500" />
+          </label>
+          <label id="runsControl">
+            Runs (mean/std)
+            <input id="inputRuns" type="range" min="5" max="200" step="5" value="150" />
+            <div class="slider-readout">Runs = <span id="inputRunsValue">150</span></div>
+          </label>
+          <label id="allRunsControl">
+            Show all runs (I)
+            <input id="inputAllRuns" type="checkbox" />
+            <div class="slider-readout">Faint trajectories for each stochastic run</div>
+          </label>
+          <label>
+            Initial infected I0
+            <input id="inputI0" type="range" min="1" max="50" step="1" value="1" />
+            <div class="slider-readout">I0 = <span id="inputI0Value">1</span></div>
+          </label>
+          <label>
+            Initial recovered R0
+            <input id="inputR0" type="number" min="0" max="50" step="1" value="0" />
+          </label>
+        </div>
       </div>
     </header>
 
@@ -709,6 +788,10 @@
     const inputR0 = document.getElementById('inputR0');
     const runsControl = document.getElementById('runsControl');
     const allRunsControl = document.getElementById('allRunsControl');
+    const controlsToggle = document.getElementById('controlsToggle');
+    const controlsPanel = document.getElementById('controlsPanel');
+    const controlsSummary = document.getElementById('controlsSummary');
+    const initialValues = document.getElementById('initialValues');
 
     const selectorPanel = document.querySelector('.panel.selector');
     const selectorToggle = document.getElementById('selectorToggle');
@@ -723,6 +806,7 @@
     let scheduled = false;
     let dragging = false;
     let isMobileInitialized = false;
+    let isControlsInitialized = false;
 
     const equations = {
       det: {
@@ -1113,6 +1197,49 @@
       }
     }
 
+    function updateControlsSummary() {
+      if (!controlsSummary) return;
+      const parts = [
+        `N ${state.N}`,
+        `steps ${state.steps}`,
+        `runs ${state.runs}`,
+        `I0 ${state.I0}`,
+        `R0 ${state.R0}`
+      ];
+      controlsSummary.textContent = parts.join(' · ');
+    }
+
+    function setInitialValuesText() {
+      if (!initialValues) return;
+      initialValues.textContent = `Initial values: N=${state.N}, steps=${state.steps}, runs=${state.runs}, I0=${state.I0}, R0=${state.R0}.`;
+    }
+
+    function setControlsState(isOpen) {
+      if (!controlsPanel || !controlsToggle) return;
+      controlsPanel.classList.toggle('is-open', isOpen);
+      controlsToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      if (controlsSummary) {
+        controlsSummary.classList.toggle('is-visible', !isOpen && mobileQuery && mobileQuery.matches);
+      }
+    }
+
+    function syncControlsForViewport() {
+      if (!controlsPanel || !controlsToggle || !mobileQuery) return;
+      if (mobileQuery.matches) {
+        if (!isControlsInitialized) {
+          setControlsState(false);
+          isControlsInitialized = true;
+        }
+      } else {
+        controlsPanel.classList.add('is-open');
+        controlsToggle.setAttribute('aria-expanded', 'true');
+        if (controlsSummary) {
+          controlsSummary.classList.remove('is-visible');
+        }
+        isControlsInitialized = false;
+      }
+    }
+
     paramBox.addEventListener('pointerdown', (event) => {
       event.preventDefault();
       dragging = true;
@@ -1147,6 +1274,7 @@
         if (inputI0Value) {
           inputI0Value.textContent = state.I0;
         }
+        updateControlsSummary();
         scheduleRender();
       });
     });
@@ -1184,8 +1312,16 @@
       });
     }
 
+    if (controlsToggle) {
+      controlsToggle.addEventListener('click', () => {
+        const isOpen = controlsPanel && controlsPanel.classList.contains('is-open');
+        setControlsState(!isOpen);
+      });
+    }
+
     if (mobileQuery) {
       mobileQuery.addEventListener('change', syncSelectorForViewport);
+      mobileQuery.addEventListener('change', syncControlsForViewport);
     }
 
     if (helpButton && helpPopover) {
@@ -1230,8 +1366,11 @@
       inputI0Value.textContent = state.I0;
     }
     state.showAllRuns = inputAllRuns ? inputAllRuns.checked : false;
+    setInitialValuesText();
+    updateControlsSummary();
     updateModeUI();
     syncSelectorForViewport();
+    syncControlsForViewport();
     render();
   </script>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
