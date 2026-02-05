@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dynamics Explorables</title>
+  <style>
+    :root {
+      --bg-1: #f8f3ea;
+      --bg-2: #e4f2ef;
+      --ink: #1e1c1a;
+      --muted: #5a5752;
+      --panel: #fffdf8;
+      --accent: #d66a33;
+      --accent-2: #2f7f75;
+      --accent-3: #b33a3a;
+      --shadow: 0 10px 30px rgba(30, 28, 26, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Trebuchet MS", "Lucida Sans", sans-serif;
+      background: radial-gradient(circle at 12% 12%, rgba(255,255,255,0.9), rgba(255,255,255,0) 55%),
+                  linear-gradient(135deg, var(--bg-1), var(--bg-2));
+      min-height: 100vh;
+    }
+
+    .app {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 24px 48px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+
+    h1 {
+      margin: 0 0 8px 0;
+      font-family: "Palatino Linotype", "Book Antiqua", Palatino, serif;
+      font-size: clamp(2rem, 3vw, 2.8rem);
+      letter-spacing: 0.5px;
+    }
+
+    header p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 640px;
+      line-height: 1.5;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(240px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--panel);
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 220px;
+    }
+
+    .card h2 {
+      margin: 0;
+      font-size: 1.2rem;
+      letter-spacing: 0.3px;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+      flex: 1;
+    }
+
+    .pill {
+      align-self: flex-start;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(47, 127, 117, 0.14);
+      color: var(--ink);
+      letter-spacing: 0.3px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(30, 28, 26, 0.2);
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--ink);
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-decoration: none;
+      width: fit-content;
+    }
+
+    .button.primary {
+      background: rgba(214, 106, 51, 0.12);
+    }
+
+    .codex-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(30, 28, 26, 0.2);
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--ink);
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-decoration: none;
+      width: fit-content;
+      margin-top: 10px;
+    }
+
+    .codex-button img {
+      width: 16px;
+      height: 16px;
+      display: block;
+    }
+
+    footer {
+      margin-top: 28px;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 860px) {
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div>
+        <h1>Dynamics Explorables</h1>
+        <p>Small explorables I made to understand Modeling Dynamical Processes on Complex Networks (PHYS-7335, Spring 2026). Class page: <a href="https://mobs-lab.github.io/phys7335/" target="_blank" rel="noreferrer">mobs-lab.github.io/phys7335</a>. Built with help from the Codex agent.</p>
+        <a class="codex-button" href="https://developers.openai.com/codex/cli/" target="_blank" rel="noreferrer">
+          <img src="openai-svgrepo-com.svg" alt="OpenAI" />
+          Built with Codex CLI
+        </a>
+      </div>
+    </header>
+
+    <div class="grid">
+      <section class="card">
+        <span class="pill">Interactive</span>
+        <h2>SIR Mixing Demo</h2>
+        <p>Explore deterministic vs. stochastic SIR curves, parameter sweeps, and uncertainty bands with live controls.</p>
+        <a class="button primary" href="sir.html">Open SIR Demo</a>
+      </section>
+
+      <section class="card">
+        <span class="pill">Phase Transition</span>
+        <h2>SIR Phase Transition</h2>
+        <p>Run a grid of stochastic simulations and visualize final epidemic size against \(\beta/\mu\). Hover or brush for run-level detail.</p>
+        <a class="button primary" href="sir-transtiion.html">Open Phase Transition</a>
+      </section>
+    </div>
+
+    <footer>Tip: the phase transition demo can take time for large grids—start with smaller divisions.</footer>
+  </div>
+
+  <script>
+    window.MathJax = { tex: { inlineMath: [['\\(', '\\)'], ['$', '$']] } };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</body>
+</html>
