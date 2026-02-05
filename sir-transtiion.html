@@ -1,0 +1,1209 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SIR Phase Transition</title>
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['\\(', '\\)'], ['$', '$']] }
+    };
+  </script>
+  <style>
+    :root {
+      --bg-1: #f8f3ea;
+      --bg-2: #e4f2ef;
+      --ink: #1e1c1a;
+      --muted: #5a5752;
+      --panel: #fffdf8;
+      --accent: #d66a33;
+      --accent-2: #2f7f75;
+      --accent-3: #b33a3a;
+      --grid: rgba(30, 28, 26, 0.12);
+      --shadow: 0 10px 30px rgba(30, 28, 26, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Trebuchet MS", "Lucida Sans", sans-serif;
+      background: radial-gradient(circle at 12% 12%, rgba(255,255,255,0.9), rgba(255,255,255,0) 55%),
+                  linear-gradient(135deg, var(--bg-1), var(--bg-2));
+      min-height: 100vh;
+    }
+
+    .app {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 28px 24px 40px;
+    }
+
+    header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 24px;
+      animation: rise 0.6s ease-out both;
+    }
+
+    h1 {
+      margin: 0 0 8px 0;
+      font-family: "Palatino Linotype", "Book Antiqua", Palatino, serif;
+      font-size: clamp(1.8rem, 2.4vw, 2.6rem);
+      letter-spacing: 0.5px;
+    }
+
+    header p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 620px;
+      line-height: 1.5;
+    }
+
+    header p + .controls-actions {
+      margin-top: 10px;
+    }
+
+    .controls-actions {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(260px, 320px) 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border-radius: 20px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+      animation: rise 0.6s ease-out both;
+    }
+
+    .panel h2 {
+      margin: 0 0 12px;
+      font-size: 1.1rem;
+      letter-spacing: 0.3px;
+    }
+
+    .controls-panel {
+      display: block;
+    }
+
+    .controls-toggle {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(30, 28, 26, 0.2);
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .controls-indicator {
+      display: none;
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 0 0 rgba(214, 106, 51, 0.55);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .controls-toggle[aria-expanded="true"] .controls-indicator {
+      display: none;
+    }
+
+    .play-button {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(30, 28, 26, 0.2);
+      background: rgba(214, 106, 51, 0.12);
+      color: var(--ink);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .play-button.secondary {
+      background: rgba(47, 127, 117, 0.12);
+    }
+
+    .play-button svg {
+      width: 14px;
+      height: 14px;
+      fill: currentColor;
+      flex: 0 0 auto;
+    }
+
+    .controls-toggle svg {
+      width: 14px;
+      height: 14px;
+      stroke: currentColor;
+      flex: 0 0 auto;
+    }
+
+    .controls-summary {
+      display: none;
+      font-size: 0.8rem;
+      color: var(--muted);
+      letter-spacing: 0.2px;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(120px, 1fr));
+      gap: 10px 12px;
+    }
+
+    .controls label {
+      font-size: 0.85rem;
+      color: var(--muted);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .controls input {
+      font-size: 0.9rem;
+      padding: 6px 8px;
+      border-radius: 10px;
+      border: 1px solid rgba(30, 28, 26, 0.2);
+      background: #ffffff;
+    }
+
+    .controls input[type="range"] {
+      width: 100%;
+      padding: 0;
+    }
+
+    .control-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+      grid-column: 1 / -1;
+    }
+
+    .controls input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(30, 28, 26, 0.2);
+      background: rgba(255, 255, 255, 0.9);
+      color: var(--ink);
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    .button.primary {
+      background: rgba(47, 127, 117, 0.16);
+      font-weight: 600;
+    }
+
+    .button.secondary {
+      background: rgba(214, 106, 51, 0.12);
+      font-weight: 600;
+    }
+
+    .slider-readout {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .note {
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.4;
+      grid-column: 1 / -1;
+    }
+
+    .plot-wrap {
+      display: grid;
+      grid-template-columns: 2.2fr 1fr;
+      gap: 16px;
+    }
+
+    .plot-panel {
+      position: relative;
+      min-height: 360px;
+    }
+
+    .plot-panel svg {
+      width: 100%;
+      height: 360px;
+      display: block;
+      touch-action: none;
+    }
+
+    .plot-panel .tooltip {
+      position: absolute;
+      top: 0;
+      left: 0;
+      padding: 6px 8px;
+      background: rgba(30, 28, 26, 0.9);
+      color: #fff;
+      font-size: 0.75rem;
+      border-radius: 6px;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(-6px);
+      transition: opacity 0.15s ease, transform 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .plot-panel .tooltip.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .plot-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .detail-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .detail-panel canvas {
+      width: 100%;
+      height: 220px;
+      border-radius: 12px;
+      background: #fff;
+      border: 1px solid rgba(30, 28, 26, 0.08);
+    }
+
+    .detail-panel .detail-meta {
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(214, 106, 51, 0.12);
+      color: var(--ink);
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .selection-rect {
+      fill: rgba(47, 127, 117, 0.1);
+      stroke: rgba(47, 127, 117, 0.5);
+      stroke-dasharray: 4 3;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(214, 106, 51, 0.55); }
+      70% { box-shadow: 0 0 0 6px rgba(214, 106, 51, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(214, 106, 51, 0); }
+    }
+
+    @media (max-width: 960px) {
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .layout {
+        grid-template-columns: 1fr;
+      }
+      .controls-panel { width: 100%; display: none; }
+      .controls-panel.is-open { display: block; }
+      .controls-toggle { display: inline-flex; }
+      .play-button { display: inline-flex; }
+      .controls-indicator { display: inline-block; }
+      .controls-summary.is-visible { display: block; }
+      .controls { grid-template-columns: 1fr; }
+      .plot-wrap {
+        grid-template-columns: 1fr;
+      }
+      .plot-panel svg {
+        height: 320px;
+      }
+      .detail-panel canvas {
+        height: 200px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div>
+        <h1>SIR Phase Transition</h1>
+        <p>We scan a grid of \((\beta, \mu)\) values, run many stochastic simulations, and plot the mean final recovered count \(R_{final}\) vs. the ratio \(\beta/\mu\). Hover a point to see a single stochastic trajectory; drag to brush and show all runs from the selected points.</p>
+        <div class="controls-actions">
+          <button id="controlsToggle" class="controls-toggle" type="button" aria-expanded="false" aria-controls="controlsPanel">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M12 20a8 8 0 1 0-8-8 8 8 0 0 0 8 8Z" fill="none" stroke="currentColor" stroke-width="2"/>
+              <path d="M12 8a4 4 0 1 0 4 4 4 4 0 0 0-4-4Z" fill="none" stroke="currentColor" stroke-width="2"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            Controls
+            <span class="controls-indicator" aria-hidden="true"></span>
+          </button>
+          <button id="playDefault" class="play-button" type="button" aria-label="Run with default parameters">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <polygon points="7,5 19,12 7,19" />
+            </svg>
+            Run default
+          </button>
+          <button id="rerunDefault" class="play-button secondary" type="button" aria-label="Re-run with new seeds">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M3 12a9 9 0 1 0 3-6.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M3 4v5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            Re-run
+          </button>
+          <div id="controlsSummary" class="controls-summary" aria-hidden="true"></div>
+        </div>
+      </div>
+      <span id="progressBadge" class="badge">Ready</span>
+    </header>
+
+    <div class="layout">
+      <section id="controlsPanel" class="panel controls-panel">
+        <h2>Simulation controls</h2>
+        <div class="controls">
+          <label>
+            Population N
+            <input id="inputN" type="number" min="20" max="2000" step="10" value="200" />
+          </label>
+          <label>
+            Time steps
+            <input id="inputSteps" type="number" min="20" max="800" step="10" value="200" />
+          </label>
+          <label>
+            Initial infected I0
+            <input id="inputI0" type="number" min="1" max="50" step="1" value="1" />
+          </label>
+          <label>
+            Runs per \((\beta, \mu)\)
+            <input id="inputRuns" type="number" min="10" max="500" step="10" value="100" />
+          </label>
+          <label>
+            \(\beta\) divisions
+            <input id="inputBetaDivs" type="number" min="4" max="30" step="1" value="12" />
+          </label>
+          <label>
+            \(\mu\) divisions
+            <input id="inputMuDivs" type="number" min="4" max="30" step="1" value="12" />
+          </label>
+          <label>
+            \(\beta_{min}\)
+            <input id="inputBetaMin" type="number" min="0.01" max="1" step="0.01" value="0.05" />
+          </label>
+          <label>
+            \(\mu_{min}\)
+            <input id="inputMuMin" type="number" min="0.01" max="1" step="0.01" value="0.05" />
+          </label>
+          <label>
+            Show all \(R_{final}\) points
+            <input id="inputAllPoints" type="checkbox" />
+            <div class="slider-readout">Plot each run's \(R_{final}\) in faint dots</div>
+          </label>
+          <label>
+            Auto-run on change
+            <input id="inputAutoRun" type="checkbox" />
+            <div class="slider-readout">Re-run scan whenever parameters change</div>
+          </label>
+          <label>
+            Exclude dead runs
+            <input id="inputFilterDead" type="checkbox" />
+            <div class="slider-readout">Drop runs with \(R_{final} \le 10\\%\\) of \(N\)</div>
+          </label>
+          <label>
+            Log scale \(x = \beta/\mu\)
+            <input id="inputLogX" type="checkbox" />
+          </label>
+          <label>
+            Log scale \(y = R_{final}\)
+            <input id="inputLogY" type="checkbox" />
+          </label>
+          <div class="control-actions">
+            <button id="runButton" class="button primary" type="button">Run scan</button>
+            <button id="rerunButton" class="button secondary" type="button">Re-run (new seeds)</button>
+            <button id="clearSelection" class="button" type="button">Clear selection</button>
+          </div>
+          <p class="note">Beta and mu ranges are fixed at [0.05, 1.0] to keep \(\beta/\mu\) finite. Larger grids + more runs will take longer.</p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Phase transition scatter</h2>
+        <div class="plot-wrap">
+          <div class="plot-panel">
+            <svg id="scatter" viewBox="0 0 760 420" preserveAspectRatio="xMidYMid meet">
+              <rect x="0" y="0" width="760" height="420" fill="#fffdf8" />
+              <g id="scatterGrid" stroke="rgba(30,28,26,0.08)"></g>
+              <g id="scatterAxes" stroke="rgba(30,28,26,0.35)" stroke-width="1">
+                <line x1="60" y1="360" x2="730" y2="360" />
+                <line x1="60" y1="40" x2="60" y2="360" />
+              </g>
+              <line id="ratioLine" x1="0" y1="40" x2="0" y2="360" stroke="rgba(179, 58, 58, 0.6)" stroke-width="1.5" stroke-dasharray="5 4" />
+            <g id="scatterXTicks" fill="#5a5752" font-size="12" font-family="Trebuchet MS"></g>
+            <g id="scatterYTicks" fill="#5a5752" font-size="12" font-family="Trebuchet MS"></g>
+            <g id="scatterAllRuns"></g>
+            <g id="scatterPoints"></g>
+            <rect id="selectionRect" class="selection-rect" x="0" y="0" width="0" height="0" visibility="hidden"></rect>
+          </svg>
+            <div id="scatterTooltip" class="tooltip"></div>
+            <div class="plot-meta">
+              <span id="scatterMeta">Awaiting run…</span>
+              <span>Color = \(\mu\)</span>
+            </div>
+          </div>
+
+          <div class="detail-panel">
+            <canvas id="detailCanvas" width="360" height="220"></canvas>
+            <div id="detailMeta" class="detail-meta">Hover a point to preview one stochastic trajectory.</div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const defaultState = {
+      N: 200,
+      steps: 200,
+      I0: 1,
+      runs: 100,
+      betaDivs: 12,
+      muDivs: 12,
+      betaMin: 0.05,
+      betaMax: 1.0,
+      muMin: 0.05,
+      muMax: 1.0
+    };
+
+    const state = { ...defaultState };
+
+    const inputN = document.getElementById('inputN');
+    const inputSteps = document.getElementById('inputSteps');
+    const inputI0 = document.getElementById('inputI0');
+    const inputRuns = document.getElementById('inputRuns');
+    const inputBetaDivs = document.getElementById('inputBetaDivs');
+    const inputMuDivs = document.getElementById('inputMuDivs');
+    const inputBetaMin = document.getElementById('inputBetaMin');
+    const inputMuMin = document.getElementById('inputMuMin');
+    const inputAllPoints = document.getElementById('inputAllPoints');
+    const inputAutoRun = document.getElementById('inputAutoRun');
+    const inputFilterDead = document.getElementById('inputFilterDead');
+    const inputLogX = document.getElementById('inputLogX');
+    const inputLogY = document.getElementById('inputLogY');
+    const runButton = document.getElementById('runButton');
+    const rerunButton = document.getElementById('rerunButton');
+    const clearSelection = document.getElementById('clearSelection');
+    const progressBadge = document.getElementById('progressBadge');
+    const controlsToggle = document.getElementById('controlsToggle');
+    const controlsPanel = document.getElementById('controlsPanel');
+    const controlsSummary = document.getElementById('controlsSummary');
+    const playDefault = document.getElementById('playDefault');
+    const rerunDefault = document.getElementById('rerunDefault');
+
+    const scatter = document.getElementById('scatter');
+    const scatterPoints = document.getElementById('scatterPoints');
+    const scatterAllRuns = document.getElementById('scatterAllRuns');
+    const scatterGrid = document.getElementById('scatterGrid');
+    const scatterXTicks = document.getElementById('scatterXTicks');
+    const scatterYTicks = document.getElementById('scatterYTicks');
+    const selectionRect = document.getElementById('selectionRect');
+    const scatterTooltip = document.getElementById('scatterTooltip');
+    const scatterMeta = document.getElementById('scatterMeta');
+    const ratioLine = document.getElementById('ratioLine');
+
+    const detailCanvas = document.getElementById('detailCanvas');
+    const detailMeta = document.getElementById('detailMeta');
+    const ctx = detailCanvas.getContext('2d');
+
+    let pairs = [];
+    let results = [];
+    let computeIndex = 0;
+    let currentToken = 0;
+    let isComputing = false;
+    let rerunNonce = 0;
+    let autoRunTimer = null;
+
+    let isBrushing = false;
+    let brushStart = null;
+    let selectedIndices = [];
+    let isControlsInitialized = false;
+
+    const mobileQuery = window.matchMedia('(max-width: 960px)');
+
+    function clamp(value, min, max) {
+      return Math.min(Math.max(value, min), max);
+    }
+
+    function updateControlsSummary() {
+      if (!controlsSummary) return;
+      const n = parseInt(inputN.value, 10) || state.N;
+      const steps = parseInt(inputSteps.value, 10) || state.steps;
+      const i0 = parseInt(inputI0.value, 10) || state.I0;
+      const runs = parseInt(inputRuns.value, 10) || state.runs;
+      const bdiv = parseInt(inputBetaDivs.value, 10) || state.betaDivs;
+      const mdiv = parseInt(inputMuDivs.value, 10) || state.muDivs;
+      const bmin = parseFloat(inputBetaMin.value) || state.betaMin;
+      const mmin = parseFloat(inputMuMin.value) || state.muMin;
+      controlsSummary.textContent = `N ${n} · steps ${steps} · I0 ${i0} · runs ${runs} · β div ${bdiv} · μ div ${mdiv} · βmin ${bmin} · μmin ${mmin}`;
+    }
+
+    function scheduleAutoRun() {
+      if (!inputAutoRun || !inputAutoRun.checked) return;
+      if (autoRunTimer) {
+        clearTimeout(autoRunTimer);
+      }
+      autoRunTimer = setTimeout(() => {
+        autoRunTimer = null;
+        beginRun();
+      }, 200);
+    }
+
+    function applyDefaultsToInputs() {
+      inputN.value = defaultState.N;
+      inputSteps.value = defaultState.steps;
+      inputI0.value = defaultState.I0;
+      inputRuns.value = defaultState.runs;
+      inputBetaDivs.value = defaultState.betaDivs;
+      inputMuDivs.value = defaultState.muDivs;
+      inputBetaMin.value = defaultState.betaMin;
+      inputMuMin.value = defaultState.muMin;
+      updateControlsSummary();
+    }
+
+    function setControlsState(isOpen) {
+      if (!controlsPanel || !controlsToggle) return;
+      controlsPanel.classList.toggle('is-open', isOpen);
+      controlsToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      if (controlsSummary) {
+        controlsSummary.classList.toggle('is-visible', !isOpen && mobileQuery.matches);
+      }
+      if (playDefault) {
+        playDefault.style.display = !isOpen && mobileQuery.matches ? 'inline-flex' : 'none';
+      }
+      if (rerunDefault) {
+        rerunDefault.style.display = !isOpen && mobileQuery.matches ? 'inline-flex' : 'none';
+      }
+    }
+
+    function syncControlsForViewport() {
+      if (!controlsPanel || !controlsToggle || !mobileQuery) return;
+      if (mobileQuery.matches) {
+        if (!isControlsInitialized) {
+          setControlsState(false);
+          isControlsInitialized = true;
+        }
+      } else {
+        controlsPanel.classList.add('is-open');
+        controlsToggle.setAttribute('aria-expanded', 'true');
+        if (controlsSummary) {
+          controlsSummary.classList.remove('is-visible');
+        }
+        isControlsInitialized = false;
+      }
+    }
+
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function lerpColor(c1, c2, t) {
+      const a = c1.match(/\w\w/g).map((x) => parseInt(x, 16));
+      const b = c2.match(/\w\w/g).map((x) => parseInt(x, 16));
+      const c = a.map((v, i) => Math.round(lerp(v, b[i], t)));
+      return `#${c.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+    }
+
+    function mulberry32(seed) {
+      let t = seed >>> 0;
+      return function rng() {
+        t += 0x6D2B79F5;
+        let x = t;
+        x = Math.imul(x ^ (x >>> 15), x | 1);
+        x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
+        return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    function binomial(n, p, rng) {
+      if (n <= 0 || p <= 0) return 0;
+      if (p >= 1) return n;
+      if (n < 25) {
+        let x = 0;
+        for (let i = 0; i < n; i++) {
+          if (rng() < p) x += 1;
+        }
+        return x;
+      }
+      const mean = n * p;
+      const std = Math.sqrt(n * p * (1 - p));
+      const z = Math.sqrt(-2.0 * Math.log(rng())) * Math.cos(2.0 * Math.PI * rng());
+      return clamp(Math.round(mean + std * z), 0, n);
+    }
+
+    function buildGrid() {
+      const betaVals = [];
+      const muVals = [];
+      for (let i = 0; i < state.betaDivs; i++) {
+        betaVals.push(lerp(state.betaMin, state.betaMax, i / (state.betaDivs - 1)));
+      }
+      for (let j = 0; j < state.muDivs; j++) {
+        muVals.push(lerp(state.muMin, state.muMax, j / (state.muDivs - 1)));
+      }
+      pairs = [];
+      betaVals.forEach((beta) => {
+        muVals.forEach((mu) => {
+          pairs.push({ beta, mu });
+        });
+      });
+    }
+
+    function simulatePair(beta, mu) {
+      const runs = [];
+      const rFinals = [];
+      let Rsum = 0;
+      let keptRuns = 0;
+      const filterDead = inputFilterDead && inputFilterDead.checked;
+      const threshold = 0.1 * state.N;
+      const seedBase = (
+        Math.floor(beta * 1e6) ^
+        Math.floor(mu * 1e5) ^
+        (state.N << 4) ^
+        (state.steps << 2) ^
+        (state.I0 * 101) ^
+        (rerunNonce * 1999)
+      ) >>> 0;
+
+      for (let r = 0; r < state.runs; r++) {
+        const rng = mulberry32((seedBase + r * 997) >>> 0);
+        const S = new Int32Array(state.steps);
+        const I = new Int32Array(state.steps);
+        const R = new Int32Array(state.steps);
+        S[0] = state.N - state.I0;
+        I[0] = state.I0;
+        R[0] = 0;
+
+        for (let t = 0; t < state.steps - 1; t++) {
+          if (I[t] === 0) {
+            S[t + 1] = S[t];
+            I[t + 1] = 0;
+            R[t + 1] = R[t];
+            if (t + 2 < state.steps) {
+              S.fill(S[t], t + 2);
+              I.fill(0, t + 2);
+              R.fill(R[t], t + 2);
+            }
+            break;
+          }
+          const lambda = 1 - Math.pow(1 - beta / state.N, I[t]);
+          const newInf = binomial(S[t], lambda, rng);
+          const newRec = binomial(I[t], mu, rng);
+          S[t + 1] = S[t] - newInf;
+          I[t + 1] = I[t] + newInf - newRec;
+          R[t + 1] = R[t] + newRec;
+        }
+        const rFinal = R[state.steps - 1];
+        if (filterDead && rFinal <= threshold) {
+          continue;
+        }
+        Rsum += rFinal;
+        keptRuns += 1;
+        rFinals.push(rFinal);
+        runs.push({ S, I, R });
+      }
+
+      return {
+        meanR: keptRuns ? Rsum / keptRuns : 0,
+        runs,
+        rFinals
+      };
+    }
+
+    function drawGrid() {
+      const plotBox = scatter.viewBox.baseVal;
+      const pad = { left: 60, right: 30, top: 40, bottom: 60 };
+      const width = plotBox.width - pad.left - pad.right;
+      const height = plotBox.height - pad.top - pad.bottom;
+      const ticks = 4;
+      const lines = [];
+      for (let i = 1; i <= ticks; i++) {
+        const x = pad.left + (width * i) / (ticks + 1);
+        const y = pad.top + (height * i) / (ticks + 1);
+        lines.push(`<line x1="${x}" y1="${pad.top}" x2="${x}" y2="${pad.top + height}" />`);
+        lines.push(`<line x1="${pad.left}" y1="${y}" x2="${pad.left + width}" y2="${y}" />`);
+      }
+      scatterGrid.innerHTML = lines.join('');
+
+      const xLabels = [];
+      const yLabels = [];
+      const ratioMin = state.betaMin / state.muMax;
+      const ratioMax = state.betaMax / state.muMin;
+      const useLogX = inputLogX && inputLogX.checked;
+      const useLogY = inputLogY && inputLogY.checked;
+      const logRatioMin = Math.log10(ratioMin);
+      const logRatioMax = Math.log10(ratioMax);
+      if (ratioLine) {
+        const ratio = 1.0;
+        const x = useLogX
+          ? pad.left + ((Math.log10(ratio) - logRatioMin) / (logRatioMax - logRatioMin)) * width
+          : pad.left + ((ratio - ratioMin) / (ratioMax - ratioMin)) * width;
+        ratioLine.setAttribute('x1', x.toFixed(2));
+        ratioLine.setAttribute('x2', x.toFixed(2));
+        ratioLine.setAttribute('y1', pad.top);
+        ratioLine.setAttribute('y2', pad.top + height);
+      }
+
+      for (let i = 0; i <= ticks; i++) {
+        const value = useLogX
+          ? Math.pow(10, logRatioMin + (logRatioMax - logRatioMin) * (i / ticks))
+          : ratioMin + (ratioMax - ratioMin) * (i / ticks);
+        const x = pad.left + (width * i) / ticks;
+        xLabels.push(`<text x="${x}" y="${pad.top + height + 20}" text-anchor="middle">${value.toFixed(2)}</text>`);
+      }
+
+      for (let i = 0; i <= ticks; i++) {
+        const value = useLogY
+          ? Math.round(Math.pow(10, Math.log10(1) + (Math.log10(state.N) - Math.log10(1)) * (i / ticks)))
+          : Math.round((state.N * i) / ticks);
+        const y = useLogY
+          ? pad.top + (1 - (Math.log10(value) - Math.log10(1)) / (Math.log10(state.N) - Math.log10(1))) * height
+          : pad.top + (1 - value / state.N) * height;
+        yLabels.push(`<text x="${pad.left - 10}" y="${y}" text-anchor="end" dominant-baseline="middle">${value}</text>`);
+      }
+
+      scatterXTicks.innerHTML = xLabels.join('');
+      scatterYTicks.innerHTML = yLabels.join('');
+    }
+
+    function mapPoint(ratio, Rmean) {
+      const plotBox = scatter.viewBox.baseVal;
+      const pad = { left: 60, right: 30, top: 40, bottom: 60 };
+      const width = plotBox.width - pad.left - pad.right;
+      const height = plotBox.height - pad.top - pad.bottom;
+      const ratioMin = state.betaMin / state.muMax;
+      const ratioMax = state.betaMax / state.muMin;
+      const useLogX = inputLogX && inputLogX.checked;
+      const useLogY = inputLogY && inputLogY.checked;
+      const logRatioMin = Math.log10(ratioMin);
+      const logRatioMax = Math.log10(ratioMax);
+      const x = useLogX
+        ? pad.left + ((Math.log10(ratio) - logRatioMin) / (logRatioMax - logRatioMin)) * width
+        : pad.left + ((ratio - ratioMin) / (ratioMax - ratioMin)) * width;
+      const y = useLogY
+        ? pad.top + (1 - (Math.log10(Math.max(1, Rmean)) - Math.log10(1)) / (Math.log10(state.N) - Math.log10(1))) * height
+        : pad.top + (1 - Rmean / state.N) * height;
+      return { x, y };
+    }
+
+    function renderPoint(result, index) {
+      const { x, y } = mapPoint(result.ratio, result.meanR);
+      const muT = (result.mu - state.muMin) / (state.muMax - state.muMin);
+      const color = lerpColor('2f7f75', 'd66a33', muT);
+      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      circle.setAttribute('cx', x.toFixed(2));
+      circle.setAttribute('cy', y.toFixed(2));
+      circle.setAttribute('r', '4');
+      circle.setAttribute('fill', color);
+      circle.setAttribute('stroke', 'rgba(30,28,26,0.25)');
+      circle.setAttribute('stroke-width', '0.6');
+      circle.dataset.index = index;
+      scatterPoints.appendChild(circle);
+      result.screenX = x;
+      result.screenY = y;
+
+      circle.addEventListener('mouseenter', (event) => {
+        if (isBrushing || selectedIndices.length) return;
+        showTooltip(event, result);
+        showSingleRun(result);
+      });
+      circle.addEventListener('mousemove', (event) => {
+        if (isBrushing || selectedIndices.length) return;
+        showTooltip(event, result);
+      });
+      circle.addEventListener('mouseleave', () => {
+        hideTooltip();
+      });
+
+      circle.addEventListener('pointerdown', (event) => {
+        event.stopPropagation();
+      });
+
+      circle.addEventListener('click', () => {
+        selectedIndices = [index];
+        showSelectedRuns([index]);
+      });
+    }
+
+    function renderAllRunPoints(result) {
+      if (!inputAllPoints || !inputAllPoints.checked) return;
+      if (!result.rFinals || !result.rFinals.length) return;
+      const ratio = result.ratio;
+      const muT = (result.mu - state.muMin) / (state.muMax - state.muMin);
+      const color = lerpColor('2f7f75', 'd66a33', muT);
+      result.rFinals.forEach((rFinal) => {
+        const { x, y } = mapPoint(ratio, rFinal);
+        const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        dot.setAttribute('cx', x.toFixed(2));
+        dot.setAttribute('cy', y.toFixed(2));
+        dot.setAttribute('r', '2');
+        dot.setAttribute('fill', color);
+        dot.setAttribute('fill-opacity', '0.25');
+        scatterAllRuns.appendChild(dot);
+      });
+    }
+
+    function redrawScatter() {
+      scatterPoints.innerHTML = '';
+      scatterAllRuns.innerHTML = '';
+      results.forEach((result, index) => {
+        renderPoint(result, index);
+        renderAllRunPoints(result);
+      });
+    }
+
+    function showTooltip(event, result) {
+      scatterTooltip.textContent = `β=${result.beta.toFixed(2)} μ=${result.mu.toFixed(2)} β/μ=${result.ratio.toFixed(2)} R̄=${result.meanR.toFixed(1)}`;
+      const bounds = scatter.getBoundingClientRect();
+      scatterTooltip.style.left = `${event.clientX - bounds.left + 12}px`;
+      scatterTooltip.style.top = `${event.clientY - bounds.top + 12}px`;
+      scatterTooltip.classList.add('is-visible');
+    }
+
+    function hideTooltip() {
+      scatterTooltip.classList.remove('is-visible');
+    }
+
+    function drawRunPlot(runs, label) {
+      const dpr = window.devicePixelRatio || 1;
+      const width = detailCanvas.clientWidth * dpr;
+      const height = detailCanvas.clientHeight * dpr;
+      if (detailCanvas.width !== width || detailCanvas.height !== height) {
+        detailCanvas.width = width;
+        detailCanvas.height = height;
+      }
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, width, height);
+
+      const pad = { left: 32, right: 12, top: 16, bottom: 24 };
+      const plotW = width - pad.left - pad.right;
+      const plotH = height - pad.top - pad.bottom;
+
+      ctx.strokeStyle = 'rgba(30,28,26,0.2)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(pad.left, pad.top);
+      ctx.lineTo(pad.left, pad.top + plotH);
+      ctx.lineTo(pad.left + plotW, pad.top + plotH);
+      ctx.stroke();
+
+      const maxY = state.N;
+      const maxX = state.steps - 1;
+      const totalRuns = runs.length;
+      const alpha = totalRuns > 1 ? Math.min(0.35, 0.85 / Math.sqrt(totalRuns)) : 1;
+      const lineWidth = totalRuns > 1 ? 1 : 2;
+
+      function strokeSeries(series, color) {
+        ctx.beginPath();
+        for (let t = 0; t < series.length; t++) {
+          const x = pad.left + (t / maxX) * plotW;
+          const y = pad.top + (1 - series[t] / maxY) * plotH;
+          if (t === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = `rgba(${color}, ${alpha})`;
+        ctx.lineWidth = lineWidth;
+        ctx.stroke();
+      }
+
+      runs.forEach((series) => {
+        strokeSeries(series.S, '47, 127, 117');
+        strokeSeries(series.I, '179, 58, 58');
+        strokeSeries(series.R, '214, 106, 51');
+      });
+
+      detailMeta.textContent = `${label} (S green, I red, R orange)`;
+    }
+
+    function showSingleRun(result) {
+      const run = result.runs[0];
+      drawRunPlot([run], `β=${result.beta.toFixed(2)}, μ=${result.mu.toFixed(2)} (single run)`);
+    }
+
+    function showSelectedRuns(indices) {
+      const runs = [];
+      indices.forEach((idx) => {
+        const result = results[idx];
+        if (!result) return;
+        result.runs.forEach((run) => runs.push(run));
+      });
+      if (!runs.length) {
+        drawRunPlot([], 'No runs selected');
+        return;
+      }
+      drawRunPlot(runs, `Selected ${indices.length} points, ${runs.length} runs`);
+    }
+
+    function clearSelectionState() {
+      selectedIndices = [];
+      selectionRect.setAttribute('visibility', 'hidden');
+      scatterMeta.textContent = `Computed ${results.length} / ${pairs.length} points`;
+      detailMeta.textContent = 'Hover a point to preview one stochastic trajectory.';
+    }
+
+    function beginRun() {
+      state.N = clamp(parseInt(inputN.value, 10) || state.N, 20, 2000);
+      state.steps = clamp(parseInt(inputSteps.value, 10) || state.steps, 20, 800);
+      state.I0 = clamp(parseInt(inputI0.value, 10) || state.I0, 1, 50);
+      state.runs = clamp(parseInt(inputRuns.value, 10) || state.runs, 10, 500);
+      state.betaDivs = clamp(parseInt(inputBetaDivs.value, 10) || state.betaDivs, 4, 30);
+      state.muDivs = clamp(parseInt(inputMuDivs.value, 10) || state.muDivs, 4, 30);
+      state.betaMin = clamp(parseFloat(inputBetaMin.value) || state.betaMin, 0.01, 1.0);
+      state.muMin = clamp(parseFloat(inputMuMin.value) || state.muMin, 0.01, 1.0);
+
+      currentToken += 1;
+      computeIndex = 0;
+      results = [];
+      scatterPoints.innerHTML = '';
+      scatterAllRuns.innerHTML = '';
+      clearSelectionState();
+      buildGrid();
+      drawGrid();
+      isComputing = true;
+      progressBadge.textContent = 'Running…';
+      scheduleCompute(currentToken);
+    }
+
+    function scheduleCompute(token) {
+      if (token !== currentToken) return;
+      const start = performance.now();
+      while (computeIndex < pairs.length && performance.now() - start < 20) {
+        const pair = pairs[computeIndex];
+        const { meanR, runs, rFinals } = simulatePair(pair.beta, pair.mu);
+        const ratio = pair.beta / pair.mu;
+        const result = {
+          beta: pair.beta,
+          mu: pair.mu,
+          ratio,
+          meanR,
+          runs,
+          rFinals
+        };
+        results.push(result);
+        renderPoint(result, results.length - 1);
+        renderAllRunPoints(result);
+        computeIndex += 1;
+      }
+
+      scatterMeta.textContent = `Computed ${computeIndex} / ${pairs.length} points`;
+      progressBadge.textContent = computeIndex === pairs.length ? 'Complete' : `Running (${computeIndex}/${pairs.length})`;
+
+      if (computeIndex < pairs.length) {
+        requestAnimationFrame(() => scheduleCompute(token));
+      } else {
+        isComputing = false;
+      }
+    }
+
+    function clientToSvgPoint(event) {
+      const pt = scatter.createSVGPoint();
+      pt.x = event.clientX;
+      pt.y = event.clientY;
+      const matrix = scatter.getScreenCTM();
+      if (!matrix) return { x: 0, y: 0 };
+      const svgPoint = pt.matrixTransform(matrix.inverse());
+      return { x: svgPoint.x, y: svgPoint.y };
+    }
+
+    scatter.addEventListener('pointerdown', (event) => {
+      const { x, y } = clientToSvgPoint(event);
+      isBrushing = true;
+      brushStart = { x, y };
+      selectionRect.setAttribute('x', x);
+      selectionRect.setAttribute('y', y);
+      selectionRect.setAttribute('width', 0);
+      selectionRect.setAttribute('height', 0);
+      selectionRect.setAttribute('visibility', 'visible');
+      scatter.setPointerCapture(event.pointerId);
+    });
+
+    scatter.addEventListener('pointermove', (event) => {
+      if (!isBrushing) return;
+      const { x, y } = clientToSvgPoint(event);
+      const minX = Math.min(brushStart.x, x);
+      const minY = Math.min(brushStart.y, y);
+      const width = Math.abs(brushStart.x - x);
+      const height = Math.abs(brushStart.y - y);
+      selectionRect.setAttribute('x', minX);
+      selectionRect.setAttribute('y', minY);
+      selectionRect.setAttribute('width', width);
+      selectionRect.setAttribute('height', height);
+    });
+
+    scatter.addEventListener('pointerup', () => {
+      if (!isBrushing) return;
+      isBrushing = false;
+      const rect = selectionRect.getBBox();
+      selectionRect.setAttribute('visibility', 'hidden');
+      if (rect.width < 4 || rect.height < 4) {
+        selectedIndices = [];
+        detailMeta.textContent = 'Hover a point to preview one stochastic trajectory.';
+        return;
+      }
+      selectedIndices = [];
+      results.forEach((result, idx) => {
+        if (result.screenX >= rect.x && result.screenX <= rect.x + rect.width &&
+            result.screenY >= rect.y && result.screenY <= rect.y + rect.height) {
+          selectedIndices.push(idx);
+        }
+      });
+      if (selectedIndices.length) {
+        showSelectedRuns(selectedIndices);
+      } else {
+        detailMeta.textContent = 'No points in selection.';
+      }
+    });
+
+    scatter.addEventListener('pointercancel', () => {
+      isBrushing = false;
+      selectionRect.setAttribute('visibility', 'hidden');
+    });
+
+    clearSelection.addEventListener('click', () => {
+      selectedIndices = [];
+      drawRunPlot([], 'Hover a point to preview one stochastic trajectory.');
+    });
+
+    runButton.addEventListener('click', beginRun);
+    rerunButton.addEventListener('click', () => {
+      rerunNonce += 1;
+      beginRun();
+    });
+
+    if (inputAllPoints) {
+      inputAllPoints.addEventListener('change', () => {
+        scatterAllRuns.innerHTML = '';
+        if (inputAllPoints.checked) {
+          results.forEach((result) => renderAllRunPoints(result));
+        }
+      });
+    }
+
+    if (inputLogX) {
+      inputLogX.addEventListener('change', () => {
+        drawGrid();
+        redrawScatter();
+      });
+    }
+
+    if (inputLogY) {
+      inputLogY.addEventListener('change', () => {
+        drawGrid();
+        redrawScatter();
+      });
+    }
+
+    if (playDefault) {
+      playDefault.addEventListener('click', () => {
+        applyDefaultsToInputs();
+        beginRun();
+      });
+    }
+
+    if (rerunDefault) {
+      rerunDefault.addEventListener('click', () => {
+        rerunNonce += 1;
+        beginRun();
+      });
+    }
+
+    if (controlsToggle) {
+      controlsToggle.addEventListener('click', () => {
+        const isOpen = controlsPanel && controlsPanel.classList.contains('is-open');
+        setControlsState(!isOpen);
+      });
+    }
+
+    [
+      inputN,
+      inputSteps,
+      inputI0,
+      inputRuns,
+      inputBetaDivs,
+      inputMuDivs,
+      inputBetaMin,
+      inputMuMin,
+      inputLogX,
+      inputLogY,
+      inputFilterDead
+    ]
+      .filter(Boolean)
+      .forEach((input) => {
+        input.addEventListener('input', () => {
+          updateControlsSummary();
+          scheduleAutoRun();
+          drawGrid();
+          redrawScatter();
+        });
+      });
+
+    if (inputAutoRun) {
+      inputAutoRun.addEventListener('change', () => {
+        if (inputAutoRun.checked) {
+          beginRun();
+        }
+      });
+    }
+
+    drawGrid();
+    drawRunPlot([], 'Hover a point to preview one stochastic trajectory.');
+    updateControlsSummary();
+    syncControlsForViewport();
+    setControlsState(!mobileQuery.matches);
+    if (mobileQuery) {
+      mobileQuery.addEventListener('change', syncControlsForViewport);
+    }
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</body>
+</html>
